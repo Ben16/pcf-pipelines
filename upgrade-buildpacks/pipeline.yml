@@ -12,6 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+<% stacks = %w(cflinuxfs2 cflinuxfs3) %>
+
+--- 
+# cf_api_params: &cf_api_params
+#   CF_API_URI: {{cf_api_uri}}
+#   CF_USERNAME: {{cf_user}}
+#   CF_PASSWORD: {{cf_password}}
+  
 resource_types:
 - name: pivnet
   type: docker-image
@@ -31,70 +39,70 @@ resources:
   type: pivnet
   source:
     api_token: {{pivnet_token}}
-    product_slug: buildpacks
-    product_version: Binary*
+    product_slug: binary-buildpack 
+    product_version: \d+\.\d+\.\d+
 
 - name: dotnet-core-buildpack
   type: pivnet
   source:
     api_token: {{pivnet_token}}
-    product_slug: buildpacks
-    product_version: \.NET*
+    product_slug: dotnet-core-buildpack
+    product_version: \d+\.\d+\.\d+
 
 - name: go-buildpack
   type: pivnet
   source:
     api_token: {{pivnet_token}}
-    product_slug: buildpacks
-    product_version: ^Go.*
+    product_slug: go-buildpack
+    product_version: \d+\.\d+\.\d+
 
 - name: java-buildpack
   type: pivnet
   source:
     api_token: {{pivnet_token}}
-    product_slug: buildpacks
-    product_version: Java*
+    product_slug: java-buildpack
+    product_version: \d+\.\d+\.\d+
 
 - name: nodejs-buildpack
   type: pivnet
   source:
     api_token: {{pivnet_token}}
-    product_slug: buildpacks
-    product_version: NodeJS*
+    product_slug: nodejs-buildpack
+    product_version: \d+\.\d+\.\d+
 
 - name: php-buildpack
   type: pivnet
   source:
     api_token: {{pivnet_token}}
-    product_slug: buildpacks
-    product_version: PHP*
+    product_slug: php-buildpack
+    product_version: \d+\.\d+\.\d+
 
 - name: python-buildpack
   type: pivnet
   source:
     api_token: {{pivnet_token}}
-    product_slug: buildpacks
-    product_version: Python*
+    product_slug: python-buildpack
+    product_version: \d+\.\d+\.\d+
 
 - name: ruby-buildpack
   type: pivnet
   source:
     api_token: {{pivnet_token}}
-    product_slug: buildpacks
-    product_version: Ruby*
+    product_slug: ruby-buildpack
+    product_version: \d+\.\d+\.\d+
 
 - name: staticfile-buildpack
   type: pivnet
   source:
     api_token: {{pivnet_token}}
-    product_slug: buildpacks
-    product_version: Staticfile*
+    product_slug: staticfile-buildpack
+    product_version: \d+\.\d+\.\d+
 
-- name: tc-buildpack
+- name: tc-buildpack # not sure what to do about this
   type: pivnet
   source:
     api_token: {{pivnet_token}}
-    product_slug: buildpacks
+    product_slug: tc-buildpack
     product_version: "tc Server*"
 
 - name: schedule
@@ -112,7 +120,7 @@ jobs:
   - aggregate:
     - get: schedule
       trigger: true
-    - get: binary-buildpack
+    - get: binary-buildpack 
       params: { globs: [] }
     - get: dotnet-core-buildpack
       params: { globs: [] }
@@ -133,7 +141,8 @@ jobs:
     - get: tc-buildpack
       params: { globs: [] }
 
-- name: stage-binary-buildpack
+# <% stacks.each do |stack| %>
+- name: stage-binary-buildpack #-<%= stack %>
   serial_groups: [cc-api]
   plan:
   - aggregate:
@@ -142,325 +151,357 @@ jobs:
       resource: binary-buildpack
       trigger: true
       passed: [regulator]
-
+      params:
+        globs:
+        # - "*<%= stack %>*"
   - task: stage
     file: pcf-pipelines/tasks/stage-buildpack/task.yml
     params:
       <<: *cf_api_params
       BUILDPACK_NAME: binary_buildpack_latest
+      # STACK_NAME: "<%= stack %>"
+# - name: promote-binary-buildpack-<%= stack %> 
+#   serial_groups: [cc-api]
+#   plan:
+#   - aggregate:
+#     - get: binary-buildpack
+#       trigger: true
+#       passed: [stage-binary-buildpack-<%= stack %>]
+#       params: {globs: []}
+#     - get: pcf-pipelines
+#   - task: promote
+#     file: pcf-pipelines/tasks/promote-buildpack/task.yml
+#     params:
+#       <<: *cf_api_params
+#       SOURCE_BUILDPACK_NAME: binary_buildpack_latest
+#       TARGET_BUILDPACK_NAME: binary_buildpack
+#       STACK_NAME: <%= stack %>
+# # end loop
+# - name: stage-dotnet-buildpack
+#   serial_groups: [cc-api]
+#   plan:
+#   - aggregate:
+#     - get: pcf-pipelines
+#     - get: buildpack
+#       resource: dotnet-core-buildpack
+#       passed: [regulator]
+#       trigger: true
+#       params:
+#         globs:
+#         - "*<%= stack %>*"
 
-- name: promote-binary-buildpack
-  serial_groups: [cc-api]
-  plan:
-  - aggregate:
-    - get: binary-buildpack
-      trigger: true
-      passed: [stage-binary-buildpack]
-      params: {globs: []}
-    - get: pcf-pipelines
-  - task: promote
-    file: pcf-pipelines/tasks/promote-buildpack/task.yml
-    params:
-      <<: *cf_api_params
-      SOURCE_BUILDPACK_NAME: binary_buildpack_latest
-      TARGET_BUILDPACK_NAME: binary_buildpack
+#   - task: stage
+#     file: pcf-pipelines/tasks/stage-buildpack/task.yml
+#     params:
+#       <<: *cf_api_params
+#       BUILDPACK_NAME: dotnet_core_buildpack_offline_latest
+#       STACK_NAME: <%= stack %>
 
-- name: stage-dotnet-buildpack
-  serial_groups: [cc-api]
-  plan:
-  - aggregate:
-    - get: pcf-pipelines
-    - get: buildpack
-      resource: dotnet-core-buildpack
-      passed: [regulator]
-      trigger: true
+# - name: promote-dotnet-buildpack-<%= stack %>
+#   serial_groups: [cc-api]
+#   plan:
+#   - aggregate:
+#     - get: dotnet-core-buildpack
+#       trigger: true
+#       passed: [stage-dotnet-buildpack-<%= stack %>]
+#       params: {globs: []}
+#     - get: pcf-pipelines
+#   - task: promote
+#     file: pcf-pipelines/tasks/promote-buildpack/task.yml
+#     params:
+#       <<: *cf_api_params
+#       SOURCE_BUILDPACK_NAME: dotnet_core_buildpack_offline_latest
+#       TARGET_BUILDPACK_NAME: dotnet_core_buildpack_offline
+#       STACK_NAME: <%= stack %>
 
-  - task: stage
-    file: pcf-pipelines/tasks/stage-buildpack/task.yml
-    params:
-      <<: *cf_api_params
-      BUILDPACK_NAME: dotnet_core_buildpack_offline_latest
+# - name: stage-go-buildpack-<%= stack %>
+#   serial_groups: [cc-api]
+#   plan:
+#   - aggregate:
+#     - get: pcf-pipelines
+#     - get: buildpack
+#       resource: go-buildpack
+#       passed: [regulator]
+#       trigger: true
+#       params:
+#         globs:
+#         - "*<%= stack %>*"
 
-- name: promote-dotnet-buildpack
-  serial_groups: [cc-api]
-  plan:
-  - aggregate:
-    - get: dotnet-core-buildpack
-      trigger: true
-      passed: [stage-dotnet-buildpack]
-      params: {globs: []}
-    - get: pcf-pipelines
-  - task: promote
-    file: pcf-pipelines/tasks/promote-buildpack/task.yml
-    params:
-      <<: *cf_api_params
-      SOURCE_BUILDPACK_NAME: dotnet_core_buildpack_offline_latest
-      TARGET_BUILDPACK_NAME: dotnet_core_buildpack_offline
+#   - task: stage
+#     file: pcf-pipelines/tasks/stage-buildpack/task.yml
+#     params:
+#       <<: *cf_api_params
+#       BUILDPACK_NAME: go_buildpack_latest
+#       STACK_NAME: <%= stack %>
 
-- name: stage-go-buildpack
-  serial_groups: [cc-api]
-  plan:
-  - aggregate:
-    - get: pcf-pipelines
-    - get: buildpack
-      resource: go-buildpack
-      passed: [regulator]
-      trigger: true
+# - name: promote-go-buildpack-<%= stack %>
+#   serial_groups: [cc-api]
+#   plan:
+#   - aggregate:
+#     - get: go-buildpack
+#       passed: [stage-go-buildpack-<%= stack %>]
+#       trigger: true
+#       params: {globs: []}
+#     - get: pcf-pipelines
+#   - task: promote
+#     file: pcf-pipelines/tasks/promote-buildpack/task.yml
+#     params:
+#       <<: *cf_api_params
+#       SOURCE_BUILDPACK_NAME: go_buildpack_latest
+#       TARGET_BUILDPACK_NAME: go_buildpack
+#       STACK_NAME: <%= stack %>
 
-  - task: stage
-    file: pcf-pipelines/tasks/stage-buildpack/task.yml
-    params:
-      <<: *cf_api_params
-      BUILDPACK_NAME: go_buildpack_latest
+# - name: stage-java-buildpack
+#   serial_groups: [cc-api]
+#   plan:
+#   - aggregate:
+#     - get: pcf-pipelines
+#     - get: buildpack
+#       passed: [regulator]
+#       resource: java-buildpack
+#       trigger: true
+#       params:
+#         globs:
+#         - "*offline*"
 
-- name: promote-go-buildpack
-  serial_groups: [cc-api]
-  plan:
-  - aggregate:
-    - get: go-buildpack
-      passed: [stage-go-buildpack]
-      trigger: true
-      params: {globs: []}
-    - get: pcf-pipelines
-  - task: promote
-    file: pcf-pipelines/tasks/promote-buildpack/task.yml
-    params:
-      <<: *cf_api_params
-      SOURCE_BUILDPACK_NAME: go_buildpack_latest
-      TARGET_BUILDPACK_NAME: go_buildpack
+#   - task: stage
+#     file: pcf-pipelines/tasks/stage-buildpack/task.yml
+#     params:
+#       <<: *cf_api_params
+#       BUILDPACK_NAME: java_buildpack_offline_latest
 
-- name: stage-java-buildpack
-  serial_groups: [cc-api]
-  plan:
-  - aggregate:
-    - get: pcf-pipelines
-    - get: buildpack
-      passed: [regulator]
-      resource: java-buildpack
-      trigger: true
-      params:
-        globs:
-        - "*offline*"
+# - name: promote-java-buildpack %>
+#   serial_groups: [cc-api]
+#   plan:
+#   - aggregate:
+#     - get: java-buildpack
+#       passed: [stage-java-buildpack]
+#       trigger: true
+#       params: {globs: []}
+#     - get: pcf-pipelines
+#   - task: promote
+#     file: pcf-pipelines/tasks/promote-buildpack/task.yml
+#     params:
+#       <<: *cf_api_params
+#       SOURCE_BUILDPACK_NAME: java_buildpack_offline_latest
+#       TARGET_BUILDPACK_NAME: java_buildpack_offline
 
-  - task: stage
-    file: pcf-pipelines/tasks/stage-buildpack/task.yml
-    params:
-      <<: *cf_api_params
-      BUILDPACK_NAME: java_buildpack_offline_latest
+# - name: stage-nodejs-buildpack-<%= stack %>
+#   serial_groups: [cc-api]
+#   plan:
+#   - aggregate:
+#     - get: pcf-pipelines
+#     - get: buildpack
+#       passed: [regulator]
+#       resource: nodejs-buildpack
+#       trigger: true
+#       params:
+#         globs:
+#         - "*<%= stack %>*"
 
-- name: promote-java-buildpack
-  serial_groups: [cc-api]
-  plan:
-  - aggregate:
-    - get: java-buildpack
-      passed: [stage-java-buildpack]
-      trigger: true
-      params: {globs: []}
-    - get: pcf-pipelines
-  - task: promote
-    file: pcf-pipelines/tasks/promote-buildpack/task.yml
-    params:
-      <<: *cf_api_params
-      SOURCE_BUILDPACK_NAME: java_buildpack_offline_latest
-      TARGET_BUILDPACK_NAME: java_buildpack_offline
+#   - task: stage
+#     file: pcf-pipelines/tasks/stage-buildpack/task.yml
+#     params:
+#       <<: *cf_api_params
+#       BUILDPACK_NAME: nodejs_buildpack_latest
+#       STACK_NAME: <%= stack %>
 
-- name: stage-nodejs-buildpack
-  serial_groups: [cc-api]
-  plan:
-  - aggregate:
-    - get: pcf-pipelines
-    - get: buildpack
-      passed: [regulator]
-      resource: nodejs-buildpack
-      trigger: true
+# - name: promote-nodejs-buildpack-<%= stack %>
+#   serial_groups: [cc-api]
+#   plan:
+#   - aggregate:
+#     - get: pcf-pipelines
+#     - get: nodejs-buildpack
+#       passed: [stage-nodejs-buildpack-<%= stack %>]
+#       trigger: true
+#       params: {globs: []}
+#   - task: promote
+#     file: pcf-pipelines/tasks/promote-buildpack/task.yml
+#     params:
+#       <<: *cf_api_params
+#       SOURCE_BUILDPACK_NAME: nodejs_buildpack_latest
+#       TARGET_BUILDPACK_NAME: nodejs_buildpack
+#       STACK_NAME: <%= stack %>
 
-  - task: stage
-    file: pcf-pipelines/tasks/stage-buildpack/task.yml
-    params:
-      <<: *cf_api_params
-      BUILDPACK_NAME: nodejs_buildpack_latest
+# - name: stage-php-buildpack-<%= stack %>
+#   serial_groups: [cc-api]
+#   plan:
+#   - aggregate:
+#     - get: pcf-pipelines
+#     - get: buildpack
+#       passed: [regulator]
+#       resource: php-buildpack
+#       trigger: true
+#       params:
+#         globs:
+#         - "*<%= stack %>*"
+#   - task: stage
+#     file: pcf-pipelines/tasks/stage-buildpack/task.yml
+#     params:
+#       <<: *cf_api_params
+#       BUILDPACK_NAME: php_buildpack_latest
+#       STACK_NAME: <%= stack %>
 
-- name: promote-nodejs-buildpack
-  serial_groups: [cc-api]
-  plan:
-  - aggregate:
-    - get: pcf-pipelines
-    - get: nodejs-buildpack
-      passed: [stage-nodejs-buildpack]
-      trigger: true
-      params: {globs: []}
-  - task: promote
-    file: pcf-pipelines/tasks/promote-buildpack/task.yml
-    params:
-      <<: *cf_api_params
-      SOURCE_BUILDPACK_NAME: nodejs_buildpack_latest
-      TARGET_BUILDPACK_NAME: nodejs_buildpack
+# - name: promote-php-buildpack-<%= stack %>
+#   serial_groups: [cc-api]
+#   plan:
+#   - aggregate:
+#     - get: php-buildpack
+#       passed: [stage-php-buildpack-<%= stack %>]
+#       trigger: true
+#       params: {globs: []}
+#     - get: pcf-pipelines
+#   - task: promote
+#     file: pcf-pipelines/tasks/promote-buildpack/task.yml
+#     params:
+#       <<: *cf_api_params
+#       SOURCE_BUILDPACK_NAME: php_buildpack_latest
+#       TARGET_BUILDPACK_NAME: php_buildpack
+#       STACK_NAME: <%= stack %>
 
-- name: stage-php-buildpack
-  serial_groups: [cc-api]
-  plan:
-  - aggregate:
-    - get: pcf-pipelines
-    - get: buildpack
-      passed: [regulator]
-      resource: php-buildpack
-      trigger: true
+# - name: stage-python-buildpack-<%= stack %>
+#   serial_groups: [cc-api]
+#   plan:
+#   - aggregate:
+#     - get: pcf-pipelines
+#     - get: buildpack
+#       passed: [regulator]
+#       resource: python-buildpack
+#       trigger: true
+#       params:
+#         globs:
+#         - "*<%= stack %>*"
 
-  - task: stage
-    file: pcf-pipelines/tasks/stage-buildpack/task.yml
-    params:
-      <<: *cf_api_params
-      BUILDPACK_NAME: php_buildpack_latest
+#   - task: stage
+#     file: pcf-pipelines/tasks/stage-buildpack/task.yml
+#     params:
+#       <<: *cf_api_params
+#       BUILDPACK_NAME: python_buildpack_latest
+#       STACK_NAME: <%= stack %>
 
-- name: promote-php-buildpack
-  serial_groups: [cc-api]
-  plan:
-  - aggregate:
-    - get: php-buildpack
-      passed: [stage-php-buildpack]
-      trigger: true
-      params: {globs: []}
-    - get: pcf-pipelines
-  - task: promote
-    file: pcf-pipelines/tasks/promote-buildpack/task.yml
-    params:
-      <<: *cf_api_params
-      SOURCE_BUILDPACK_NAME: php_buildpack_latest
-      TARGET_BUILDPACK_NAME: php_buildpack
+# - name: promote-python-buildpack-<%= stack %>
+#   serial_groups: [cc-api]
+#   plan:
+#   - aggregate:
+#     - get: python-buildpack
+#       passed: [stage-python-buildpack-<%= stack %>]
+#       trigger: true
+#       params: {globs: []}
+#     - get: pcf-pipelines
+#   - task: promote
+#     file: pcf-pipelines/tasks/promote-buildpack/task.yml
+#     params:
+#       <<: *cf_api_params
+#       SOURCE_BUILDPACK_NAME: python_buildpack_latest
+#       TARGET_BUILDPACK_NAME: python_buildpack
+#       STACK_NAME: <%= stack %>
 
-- name: stage-python-buildpack
-  serial_groups: [cc-api]
-  plan:
-  - aggregate:
-    - get: pcf-pipelines
-    - get: buildpack
-      passed: [regulator]
-      resource: python-buildpack
-      trigger: true
+# - name: stage-ruby-buildpack-<%= stack %>
+#   serial_groups: [cc-api]
+#   plan:
+#   - aggregate:
+#     - get: pcf-pipelines
+#     - get: buildpack
+#       passed: [regulator]
+#       resource: ruby-buildpack
+#       trigger: true      
+#       params:
+#         globs:
+#         - "*<%= stack %>*"  
 
-  - task: stage
-    file: pcf-pipelines/tasks/stage-buildpack/task.yml
-    params:
-      <<: *cf_api_params
-      BUILDPACK_NAME: python_buildpack_latest
+#   - task: stage
+#     file: pcf-pipelines/tasks/stage-buildpack/task.yml
+#     params:
+#       <<: *cf_api_params
+#       BUILDPACK_NAME: ruby_buildpack_latest
+#       STACK_NAME: <%= stack %>
 
-- name: promote-python-buildpack
-  serial_groups: [cc-api]
-  plan:
-  - aggregate:
-    - get: python-buildpack
-      passed: [stage-python-buildpack]
-      trigger: true
-      params: {globs: []}
-    - get: pcf-pipelines
-  - task: promote
-    file: pcf-pipelines/tasks/promote-buildpack/task.yml
-    params:
-      <<: *cf_api_params
-      SOURCE_BUILDPACK_NAME: python_buildpack_latest
-      TARGET_BUILDPACK_NAME: python_buildpack
+# - name: promote-ruby-buildpack-<%= stack %>
+#   serial_groups: [cc-api]
+#   plan:
+#   - aggregate:
+#     - get: ruby-buildpack
+#       passed: [stage-ruby-buildpack-<%= stack %>]
+#       trigger: true
+#       params: {globs: []}
+#     - get: pcf-pipelines
+#   - task: promote
+#     file: pcf-pipelines/tasks/promote-buildpack/task.yml
+#     params:
+#       <<: *cf_api_params
+#       SOURCE_BUILDPACK_NAME: ruby_buildpack_latest
+#       TARGET_BUILDPACK_NAME: ruby_buildpack
+#       STACK_NAME: <%= stack %>
 
-- name: stage-ruby-buildpack
-  serial_groups: [cc-api]
-  plan:
-  - aggregate:
-    - get: pcf-pipelines
-    - get: buildpack
-      passed: [regulator]
-      resource: ruby-buildpack
-      trigger: true
+# - name: stage-staticfile-buildpack-<%= stack %>
+#   serial_groups: [cc-api]
+#   plan:
+#   - aggregate:
+#     - get: pcf-pipelines
+#     - get: buildpack
+#       passed: [regulator]
+#       resource: staticfile-buildpack
+#       trigger: true
+#       params:
+#         globs:
+#         - "*<%= stack %>*"
+#   - task: stage
+#     file: pcf-pipelines/tasks/stage-buildpack/task.yml
+#     params:
+#       <<: *cf_api_params
+#       BUILDPACK_NAME: staticfile_buildpack_latest
+#       STACK_NAME: <%= stack %>
 
-  - task: stage
-    file: pcf-pipelines/tasks/stage-buildpack/task.yml
-    params:
-      <<: *cf_api_params
-      BUILDPACK_NAME: ruby_buildpack_latest
+# - name: promote-staticfile-buildpack-<%= stack %>
+#   serial_groups: [cc-api]
+#   plan:
+#   - aggregate:
+#     - get: staticfile-buildpack
+#       passed: [stage-staticfile-buildpack-<%= stack %>]
+#       trigger: true
+#       params: {globs: []}
+#     - get: pcf-pipelines
+#   - task: promote
+#     file: pcf-pipelines/tasks/promote-buildpack/task.yml
+#     params:
+#       <<: *cf_api_params
+#       SOURCE_BUILDPACK_NAME: staticfile_buildpack_latest
+#       TARGET_BUILDPACK_NAME: staticfile_buildpack
+#       STACK_NAME: <%= stack %>
+# <% end %>
+# - name: stage-tcserver-buildpack
+#   serial_groups: [cc-api]
+#   plan:
+#   - aggregate:
+#     - get: pcf-pipelines
+#     - get: buildpack
+#       passed: [regulator]
+#       resource: tc-buildpack
+#       trigger: true
+#       params:
+#         globs:
+#         - "*offline*"
 
-- name: promote-ruby-buildpack
-  serial_groups: [cc-api]
-  plan:
-  - aggregate:
-    - get: ruby-buildpack
-      passed: [stage-ruby-buildpack]
-      trigger: true
-      params: {globs: []}
-    - get: pcf-pipelines
-  - task: promote
-    file: pcf-pipelines/tasks/promote-buildpack/task.yml
-    params:
-      <<: *cf_api_params
-      SOURCE_BUILDPACK_NAME: ruby_buildpack_latest
-      TARGET_BUILDPACK_NAME: ruby_buildpack
+#   - task: stage
+#     file: pcf-pipelines/tasks/stage-buildpack/task.yml
+#     params:
+#       <<: *cf_api_params
+#       BUILDPACK_NAME: tc_buildpack_latest
 
-- name: stage-staticfile-buildpack
-  serial_groups: [cc-api]
-  plan:
-  - aggregate:
-    - get: pcf-pipelines
-    - get: buildpack
-      passed: [regulator]
-      resource: staticfile-buildpack
-      trigger: true
+# - name: promote-tcserver-buildpack
+#   serial_groups: [cc-api]
+#   plan:
+#   - aggregate:
+#     - get: tc-buildpack
+#       passed: [stage-tcserver-buildpack]
+#       trigger: true
+#       params: {globs: []}
+#     - get: pcf-pipelines
 
-  - task: stage
-    file: pcf-pipelines/tasks/stage-buildpack/task.yml
-    params:
-      <<: *cf_api_params
-      BUILDPACK_NAME: staticfile_buildpack_latest
-
-- name: promote-staticfile-buildpack
-  serial_groups: [cc-api]
-  plan:
-  - aggregate:
-    - get: staticfile-buildpack
-      passed: [stage-staticfile-buildpack]
-      trigger: true
-      params: {globs: []}
-    - get: pcf-pipelines
-  - task: promote
-    file: pcf-pipelines/tasks/promote-buildpack/task.yml
-    params:
-      <<: *cf_api_params
-      SOURCE_BUILDPACK_NAME: staticfile_buildpack_latest
-      TARGET_BUILDPACK_NAME: staticfile_buildpack
-
-- name: stage-tcserver-buildpack
-  serial_groups: [cc-api]
-  plan:
-  - aggregate:
-    - get: pcf-pipelines
-    - get: buildpack
-      passed: [regulator]
-      resource: tc-buildpack
-      trigger: true
-      params:
-        globs:
-        - "*offline*"
-
-  - task: stage
-    file: pcf-pipelines/tasks/stage-buildpack/task.yml
-    params:
-      <<: *cf_api_params
-      BUILDPACK_NAME: tc_buildpack_latest
-
-- name: promote-tcserver-buildpack
-  serial_groups: [cc-api]
-  plan:
-  - aggregate:
-    - get: tc-buildpack
-      passed: [stage-tcserver-buildpack]
-      trigger: true
-      params: {globs: []}
-    - get: pcf-pipelines
-
-  - task: promote
-    file: pcf-pipelines/tasks/promote-buildpack/task.yml
-    params:
-      <<: *cf_api_params
-      SOURCE_BUILDPACK_NAME: tc_buildpack_latest
-      TARGET_BUILDPACK_NAME: tc_buildpack
-
-cf_api_params: &cf_api_params
-  CF_API_URI: {{cf_api_uri}}
-  CF_USERNAME: {{cf_user}}
-  CF_PASSWORD: {{cf_password}}
+#   - task: promote
+#     file: pcf-pipelines/tasks/promote-buildpack/task.yml
+#     params:
+#       <<: *cf_api_params
+#       SOURCE_BUILDPACK_NAME: tc_buildpack_latest
+#       TARGET_BUILDPACK_NAME: tc_buildpack
+# <% end %>

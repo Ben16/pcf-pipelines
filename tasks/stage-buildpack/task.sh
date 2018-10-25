@@ -20,7 +20,7 @@ cf api $CF_API_URI --skip-ssl-validation
 cf auth $CF_USERNAME $CF_PASSWORD
 
 set +e
-existing_buildpack=$(cf buildpacks | grep "${BUILDPACK_NAME}\s")
+existing_buildpack=$(cf buildpacks | grep "${BUILDPACK_NAME}\s" | grep "${STACK_NAME}")
 set -e
 if [ -z "${existing_buildpack}" ]; then
   COUNT=$(cf buildpacks | grep --regexp=".zip" --count)
@@ -28,5 +28,5 @@ if [ -z "${existing_buildpack}" ]; then
   cf create-buildpack $BUILDPACK_NAME buildpack/*.zip $NEW_POSITION --enable
 else
   index=$(echo $existing_buildpack | cut -d' ' -f2)
-  cf update-buildpack $BUILDPACK_NAME -p buildpack/*.zip -i $index --enable
+  cf update-buildpack $BUILDPACK_NAME -p buildpack/*.zip s $STACK_NAME -i $index --enable
 fi
